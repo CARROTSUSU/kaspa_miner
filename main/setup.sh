@@ -1,49 +1,75 @@
 #!/bin/bash
 
-echo "🛠️ Memasang keperluan asas..."
+# ========== GUNA .env UNTUK KONFIGURASI ==========
+ENV_FILE="/root/1.82/.env"
 
-# 1. Install cronie if not available
-if ! command -v crontab >/dev/null 2>&1; then
-    echo "[⚠️] Crontab not found. Installing cronie..."
-    pkg update -y && pkg install cronie -y
+if [ ! -f "$ENV_FILE" ]; then
+    echo "🔧 Membina .env default..."
+    mkdir -p /root/1.82
+    cat <<EOF > "$ENV_FILE"
+WALLET=kaspa:MASUKKAN_WALLET_ANDA
+WORKER=kasrig01
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+EOF
+    echo "📄 Fail .env dibina di $ENV_FILE. Sila kemaskini dahulu."
+    nano $ENV_FILE
 fi
 
-# 2. Buat direktori
+# Source .env
+source "$ENV_FILE"
+
+# ========== SEMAK CRONTAB ==========
+if ! command -v crontab &>/dev/null; then
+  pkg update -y && pkg install cronie -y
+fi
+
+# ========== PASANG screen ==========
+if ! command -v screen &>/dev/null; then
+  pkg install screen -y
+fi
+
+# ========== BUAT DIREKTORI ==========
 mkdir -p /root/1.82 && cd /root/1.82
 
-# 3. Muat turun dan ekstrak lolMiner
+# ========== MUAT TURUN lolMiner ==========
 echo "⬇️ Muat turun lolMiner..."
 wget -q https://github.com/Lolliedieb/lolMiner-releases/releases/download/1.82/lolMiner_v1.82_Lin64.tar.gz
-tar -xvf lolMiner_v1.82_Lin64.tar.gz >/dev/null
-cd 1.82
 
-# 4. Auto cipta mining.sh
-echo "⚙️ Menjana mining.sh..."
-cat <<EOF > mining.sh
+# ========== EKSTRAK ==========
+tar -xzf lolMiner_v1.82_Lin64.tar.gz && mv 1.82 lolMiner
+
+# ========== CIPTA mining.sh ==========
+cat <<EOF > /root/1.82/mining.sh
 #!/bin/bash
-POOL="stratum+tcp://kheavyhash.auto.unmineable.com:3333"
-WALLET="kaspa:qrqws372y3rzj5q9tana7uhp7m3uz2aywc9sntx6xxzy8g07ufz5sdmzdltk0"
-WORKER="kasnode_\$(hostname)"
-./lolMiner --algo KAS --pool \$POOL --user \$WALLET.\$WORKER#unm
+cd /root/1.82/lolMiner
+./lolMiner --algo KASPA --pool kas.unmineable.com:3333 \
+--user ${WALLET}.${WORKER} \
+--pass x
 EOF
-chmod +x mining.sh
+chmod +x /root/1.82/mining.sh
 
-# 5. Start miner dalam screen
-echo "📟 Memulakan lolMiner dalam screen..."
-screen -dmS kasminer ./mining.sh
+# ========== RUN DENGAN screen ==========
+screen -dmS kasminer bash /root/1.82/mining.sh
 
-# 6. Muat turun kas_check.py dan config.json
-echo "📦 Muat turun Telegram payout checker..."
-wget -qO kas_check.py https://raw.githubusercontent.com/CARROTSUSU/kaspa_miner/main/main/kas_check.py
-wget -qO config.json https://raw.githubusercontent.com/CARROTSUSU/kaspa_miner/main/main/config.json
+# ========== MUAT TURUN kas_check.py ==========
+wget -q -O /root/1.82/kas_check.py https://raw.githubusercontent.com/CARROTSUSU/kaspa_miner/main/main/kas_check.py
+chmod +x /root/1.82/kas_check.py
 
-# 7. Tambah ke crontab untuk auto-run selepas reboot
-echo "🧠 Setup crontab..."
-(crontab -l 2>/dev/null; echo "@reboot cd /root/1.82/1.82 && screen -dmS kasminer ./mining.sh") | crontab -
+# ========== CIPTA config.json UNTUK TELEGRAM ==========
+cat <<EOF > /root/1.82/config.json
+{
+  "bot_token": "${TELEGRAM_BOT_TOKEN}",
+  "chat_id": "${TELEGRAM_CHAT_ID}",
+  "wallet": "${WALLET}"
+}
+EOF
 
-# 8. Mula kas_check.py (optional)
-echo "🚀 Menjalankan Telegram Notifier..."
-nohup python3 kas_check.py >/dev/null 2>&1 &
+# ========== SETUP CRON ==========
+(crontab -l 2>/dev/null; echo "*/5 * * * * python3 /root/1.82/kas_check.py") | crontab -
 
+# ========== PAPAR STATUS ==========
 echo "✅ SEMUA TELAH SIAP!"
-echo "🔋 Miner + Telegram Notifier sedang berjalan."
+echo "🚀 Mining bermula dalam screen. Guna: screen -r kasminer"
+echo "📩 Notifikasi Telegram akan dihantar jika payout diterima."
+echo "📂 Sila semak dan ubah .env untuk ubah wallet atau worker"

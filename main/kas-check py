@@ -1,43 +1,37 @@
-#!/usr/bin/env python3
-import requests, time, json, os
-from datetime import datetime
+import os
+import requests
+from dotenv import load_dotenv
 
-CONFIG = json.load(open("config.json"))
+# ========== LOAD ENV ==========
+load_dotenv("/root/1.82/.env")
 
-wallet = CONFIG["wallet"]
-bot_token = CONFIG["bot_token"]
-chat_id = CONFIG["chat_id"]
-interval = CONFIG.get("interval", 300)
+WALLET = os.getenv("WALLET")
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-def get_kas_balance():
-    url = f"https://kaspaexplorer.io/api/address/{wallet}"
-    try:
-        res = requests.get(url, timeout=10).json()
-        return float(res['balance'])
-    except:
-        return None
+# ========== SEMAK STATUS MINING ==========
+try:
+    url = f"https://kas-api.unmineable.com/v4/address/{WALLET}"
+    res = requests.get(url)
+    data = res.json()['data']
 
-def send_telegram(msg):
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    data = {"chat_id": chat_id, "text": msg}
-    try:
-        requests.post(url, data=data, timeout=10)
-    except:
-        pass
+    total_paid = data['total_paid']
+    last_paid = data['last_payment_amount']
+    last_paid_date = data['last_payment_date']
 
-last_balance = None
+    message = f"💸 Payout diterima!
+💰 Jumlah: {last_paid} KAS
+📆 Tarikh: {last_paid_date}"
 
-while True:
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    balance = get_kas_balance()
+    # Hantar notifikasi jika ada pembayaran baharu
+    if float(last_paid) > 0:
+        send_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        payload = {
+            "chat_id": CHAT_ID,
+            "text": message
+        }
+        requests.post(send_url, data=payload)
 
-    if balance is not None:
-        if last_balance is None or balance > last_balance:
-            msg = f"💸 Payout diterima!\n💰 Wallet: {wallet}\n📈 Jumlah: {balance} KAS\n🕒 {now}"
-            send_telegram(msg)
-        print(f"[{now}] Balance: {balance} KAS")
-        last_balance = balance
-    else:
-        print(f"[{now}] ❌ Gagal semak balance")
-
-    time.sleep(interval)
+except Exception as e:
+    print("[❌] Error fetching data:", str(e))
+    print("[⚠️] Gagal semak data.")

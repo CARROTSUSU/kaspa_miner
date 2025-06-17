@@ -1,37 +1,50 @@
-import os
 import requests
-from dotenv import load_dotenv
+import json
+import time
 
-# ========== LOAD ENV ==========
-load_dotenv("/root/1.82/.env")
+CONFIG_PATH = "/root/1.82/config.json"
 
-WALLET = os.getenv("WALLET")
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-
-# ========== SEMAK STATUS MINING ==========
 try:
-    url = f"https://kas-api.unmineable.com/v4/address/{WALLET}"
-    res = requests.get(url)
-    data = res.json()['data']
-
-    total_paid = data['total_paid']
-    last_paid = data['last_payment_amount']
-    last_paid_date = data['last_payment_date']
-
-    message = f"💸 Payout diterima!
-💰 Jumlah: {last_paid} KAS
-📆 Tarikh: {last_paid_date}"
-
-    # Hantar notifikasi jika ada pembayaran baharu
-    if float(last_paid) > 0:
-        send_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-        payload = {
-            "chat_id": CHAT_ID,
-            "text": message
-        }
-        requests.post(send_url, data=payload)
-
+    with open(CONFIG_PATH, "r") as f:
+        config = json.load(f)
 except Exception as e:
-    print("[❌] Error fetching data:", str(e))
-    print("[⚠️] Gagal semak data.")
+    print(f"[❌] Error loading config: {e}")
+    exit(1)
+
+WALLET = config.get("wallet")
+WORKER = config.get("worker")
+BOT_TOKEN = config.get("bot_token")
+CHAT_ID = config.get("chat_id")
+
+def send_telegram(msg):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": CHAT_ID,
+        "text": msg,
+        "parse_mode": "HTML"
+    }
+    try:
+        requests.post(url, json=payload)
+    except Exception as e:
+        print(f"[❌] Telegram error: {e}")
+
+def get_kas_info():
+    url = f"https://kaspa-pool.org/api/wallet/{WALLET}"
+    try:
+        res = requests.get(url)
+        data = res.json()
+        hashrate = data['hashrate']
+        balance = data['balance']
+        return hashrate, balance
+    except Exception as e:
+        print(f"[❌] Error fetching data: {e}")
+        return None, None
+
+if __name__ == "__main__":
+    hashrate, balance = get_kas_info()
+    if hashrate is not None:
+        msg = f"💡 <b>Worker:</b> {WORKER}\n⚙️ <b>Hashrate:</b> {hashrate} H/s\n💰 <b>Balance:</b> {balance} KAS"
+        send_telegram(msg)
+        print("✅ Info dihantar ke Telegram.")
+    else:
+        print("⚠️ Gagal semak data.")

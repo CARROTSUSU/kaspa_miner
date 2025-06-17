@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+import requests, time, json, os
+from datetime import datetime
+
+CONFIG = json.load(open("config.json"))
+
+wallet = CONFIG["wallet"]
+bot_token = CONFIG["bot_token"]
+chat_id = CONFIG["chat_id"]
+interval = CONFIG.get("interval", 300)
+
+def get_kas_balance():
+    url = f"https://kaspaexplorer.io/api/address/{wallet}"
+    try:
+        res = requests.get(url, timeout=10).json()
+        return float(res['balance'])
+    except:
+        return None
+
+def send_telegram(msg):
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    data = {"chat_id": chat_id, "text": msg}
+    try:
+        requests.post(url, data=data, timeout=10)
+    except:
+        pass
+
+last_balance = None
+
+while True:
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    balance = get_kas_balance()
+
+    if balance is not None:
+        if last_balance is None or balance > last_balance:
+            msg = f"💸 Payout diterima!\n💰 Wallet: {wallet}\n📈 Jumlah: {balance} KAS\n🕒 {now}"
+            send_telegram(msg)
+        print(f"[{now}] Balance: {balance} KAS")
+        last_balance = balance
+    else:
+        print(f"[{now}] ❌ Gagal semak balance")
+
+    time.sleep(interval)

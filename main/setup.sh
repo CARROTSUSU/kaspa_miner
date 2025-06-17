@@ -49,12 +49,15 @@ chmod +x kas_check.py
 echo -e "${GREEN}🚀 Menjalankan miner dalam screen...${NC}"
 screen -dmS kasmin ./kaspa_miner
 
-# ========== TAMBAH CRON UNTUK SEMAK BAYARAN (PILIHAN) ==========
+# ========== TAMBAH CRON UNTUK SEMAK BAYARAN & AUTOBOOT ==========
 if command -v crontab >/dev/null 2>&1; then
   echo -e "${GREEN}⏰ Menambah cronjob semakan bayaran (setiap 30 minit)...${NC}"
   (crontab -l ; echo "*/30 * * * * cd /root/1.82 && python3 kas_check.py") | crontab -
+
+  echo -e "${GREEN}🔁 Menambah cronjob autoboot miner selepas restart...${NC}"
+  (crontab -l ; echo "@reboot cd /root/1.82 && screen -dmS kasmin ./kaspa_miner && sleep 60 && python3 kas_check.py") | crontab -
 else
-  echo -e "${GREEN}[⚠️] crontab tidak dijumpai, langkau semakan automatik.${NC}"
+  echo -e "${GREEN}[⚠️] crontab tidak dijumpai, langkau semakan automatik & autoboot.${NC}"
 fi
 
 # ========== SELESAI ==========

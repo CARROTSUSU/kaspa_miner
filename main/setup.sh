@@ -1,5 +1,10 @@
 #!/bin/bash
 
+echo "🔧 Memasang modul Python..."
+pip install --upgrade pip
+pip install requests python-dotenv
+
+
 # ========== GUNA .env UNTUK KONFIGURASI ==========
 ENV_FILE="/root/1.82/.env"
 

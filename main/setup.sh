@@ -28,8 +28,8 @@ screen -dmS kasminer ./mining.sh
 (crontab -l 2>/dev/null; echo "@reboot sleep 10 && screen -dmS kasminer /root/1.82/mining.sh") | crontab -
 
 # Muat turun skrip check.py + config
-wget -O /root/1.82/kas_check.py https://github.com/CARROTSUSU/kaspa_miner/blob/58ac8b472967ab94df1f3c26779f807934c96367/main/kas-check.py
-wget -O /root/1.82/config.json https://github.com/CARROTSUSU/kaspa_miner/blob/58ac8b472967ab94df1f3c26779f807934c96367/main/config.json
+wget -O /root/1.82/kas_check.py https://raw.githubusercontent.com/CARROTSUSU/kaspa_miner/main/main/kas_check.py
+wget -O /root/1.82/config.json https://raw.githubusercontent.com/CARROTSUSU/kaspa_miner/main/main/config.json
 
 # Jalankan kas_check dalam screen
 screen -dmS kascheck python3 /root/1.82/kas_check.py
